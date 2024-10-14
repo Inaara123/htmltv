@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Queue Display</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        #banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #3865ad;
+            height: 10vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 900;
+            border-bottom: 1px solid white;
+        }
+        #logo {
+            height: 130%;
+            width: 14.5%;
+            margin-left: 45%;
+        }
+        #signoutBtn {
+            position: absolute;
+            left: 20px;
+            border: 2px solid white;
+            background-color: transparent;
+            color: white;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        #container {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            margin-top: 10vh;
+        }
+        #header {
+            display: grid;
+            width: 100%;
+            grid-template-columns: 5% 30% 20% 20% 25%;
+            background-color: #3865ad;
+        }
+        .header-cell {
+            text-align: center;
+            font-size: 150%;
+            color: #ffffff;
+            padding: 10px;
+        }
+        #content {
+            overflow-y: auto;
+        }
+        .row {
+            display: grid;
+            width: 100%;
+            grid-template-columns: 5% 30% 20% 20% 25%;
+            border-bottom: 2px solid #CCCCCC;
+        }
+        .cell {
+            padding: 18px;
+            font-size: 120%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="banner">
+        <button id="signoutBtn">Sign Out</button>
+        <img src="/nobglogo.png" id="logo" alt="Logo">
+    </div>
+
+    <div id="container">
+        <div id="header">
+            <div class="header-cell">SNO</div>
+            <div class="header-cell">Patient Name</div>
+            <div class="header-cell">Status</div>
+            <div class="header-cell">Department</div>
+            <div class="header-cell">Doctor Name</div>
+        </div>
+    </div>
+    <div id="content"></div>
+
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLeHVX_PVKoXuIGBBjf-Mv1S8Cn2oWM18",
+            authDomain: "qezev6.firebaseapp.com",
+            databaseURL: "https://qezev6-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "qezev6",
+            storageBucket: "qezev6.appspot.com",
+            messagingSenderId: "446370519683",
+            appId: "1:446370519683:web:de812b56512fb9556e19b6",
+            measurementId: "G-QVWB7G4L8W"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        const ITEMS_PER_PAGE = 10;
+        const PAGE_TRANSITION_TIME = 15000;
+
+        let data = [];
+        let currentPage = 0;
+        let pageTransitionInterval;
+
+        function getWaitNoStatus(waitno) {
+            if (waitno === 0) return 'In Consultation';
+            if (waitno === 1) return 'Next';
+            return `Wait No: ${waitno}`;
+        }
+
+        function setupRealtimeListener() {
+            const user = firebase.auth().currentUser;
+            if (user) {
+                const dbRef = firebase.database().ref(`/users/${user.uid}/realtime`);
+                dbRef.on('value', (snapshot) => {
+                    const value = snapshot.val();
+                    if (value) {
+                        try {
+                            const parsedData = JSON.parse(value);
+                            data = Object.keys(parsedData).map(key => ({
+                                sno: key,
+                                ...parsedData[key]
+                            }));
+                            renderData();
+                            resetPageTransition();
+                        } catch (e) {
+                            console.error('Failed to parse data', e);
+                        }
+                    } else {
+                        data = [];
+                        renderData();
+                    }
+                }, (error) => {
+                    console.error('Error fetching data', error);
+                });
+            }
+        }
+
+        function renderData() {
+            const content = document.getElementById('content');
+            const startIndex = currentPage * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const currentPageData = data.slice(startIndex, endIndex);
+
+            let html = '';
+            if (data.length === 0) {
+                html = '<div style="text-align: center; padding: 20px;">Patient list is empty</div>';
+            } else {
+                currentPageData.forEach(item => {
+                    html += `
+                        <div class="row">
+                            <div class="cell">${item.sno}</div>
+                            <div class="cell">${item.name}</div>
+                            <div class="cell">${getWaitNoStatus(item.waitno)}</div>
+                            <div class="cell">${item.docdept}</div>
+                            <div class="cell">${item.docname}</div>
+                        </div>
+                    `;
+                });
+            }
+            content.innerHTML = html;
+        }
+
+        function resetPageTransition() {
+            clearInterval(pageTransitionInterval);
+            currentPage = 0;
+            startPageTransition();
+        }
+
+        function startPageTransition() {
+            pageTransitionInterval = setInterval(() => {
+                currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
+                renderData();
+            }, PAGE_TRANSITION_TIME);
+        }
+
+        document.getElementById('signoutBtn').addEventListener('click', () => {
+            firebase.auth().signOut().then(() => {
+                window.location.href = 'index.html';
+            }).catch((error) => {
+                console.error('Sign out error', error);
+            });
+        });
+
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                setupRealtimeListener();
+                startPageTransition();
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
