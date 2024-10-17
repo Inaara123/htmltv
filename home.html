@@ -1,8 +1,14 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Queue Display</title>
-    <script type="text/javascript" src="https://www.gstatic.com/firebasejs/3.7.4/firebase.js"></script>
-    <style type="text/css">
+    <!-- Firebase SDK (using a slightly older version for better compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -10,18 +16,26 @@
             background-color: #f0f0f0;
         }
         #banner {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             background-color: #3865ad;
-            height: 50px;
+            height: 10vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 900;
             border-bottom: 1px solid white;
+        }
+        #logo {
+            height: 130%;
+            width: 14.5%;
+            margin-left: 45%;
         }
         #signoutBtn {
             position: absolute;
             left: 20px;
-            top: 10px;
             border: 2px solid white;
             background-color: transparent;
             color: white;
@@ -32,75 +46,72 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            margin-top: 50px;
+            margin-top: 10vh;
         }
         #header {
+            display: table;
             width: 100%;
             background-color: #3865ad;
         }
+        .header-row {
+            display: table-row;
+        }
         .header-cell {
-            float: left;
+            display: table-cell;
             text-align: center;
-            font-size: 18px;
+            font-size: 150%;
             color: #ffffff;
             padding: 10px;
         }
         #content {
-            clear: both;
+            overflow-y: auto;
         }
         .row {
+            display: table;
             width: 100%;
             border-bottom: 2px solid #CCCCCC;
-            overflow: hidden;
         }
         .cell {
-            float: left;
+            display: table-cell;
             padding: 18px;
-            font-size: 16px;
-            text-align: center;
-        }
-        #loginForm {
-            display: none;
-            margin-top: 100px;
+            font-size: 120%;
             text-align: center;
         }
     </style>
 </head>
 <body>
     <div id="banner">
-        <button id="signoutBtn" style="display: none;">Sign Out</button>
+        <button id="signoutBtn">Sign Out</button>
     </div>
 
     <div id="container">
         <div id="header">
-            <div class="header-cell" style="width: 5%;">SNO</div>
-            <div class="header-cell" style="width: 30%;">Patient Name</div>
-            <div class="header-cell" style="width: 20%;">Status</div>
-            <div class="header-cell" style="width: 20%;">Department</div>
-            <div class="header-cell" style="width: 25%;">Doctor Name</div>
+            <div class="header-row">
+                <div class="header-cell" style="width: 5%;">SNO</div>
+                <div class="header-cell" style="width: 30%;">Patient Name</div>
+                <div class="header-cell" style="width: 20%;">Status</div>
+                <div class="header-cell" style="width: 20%;">Department</div>
+                <div class="header-cell" style="width: 25%;">Doctor Name</div>
+            </div>
         </div>
     </div>
     <div id="content"></div>
 
-    <div id="loginForm">
-        <input type="email" id="email" placeholder="Email" /><br><br>
-        <input type="password" id="password" placeholder="Password" /><br><br>
-        <button id="loginBtn">Login</button>
-    </div>
-
-    <script type="text/javascript">
+    <script>
         // Your web app's Firebase configuration
-        var config = {
+        var firebaseConfig = {
             apiKey: "AIzaSyBLeHVX_PVKoXuIGBBjf-Mv1S8Cn2oWM18",
             authDomain: "qezev6.firebaseapp.com",
             databaseURL: "https://qezev6-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "qezev6",
             storageBucket: "qezev6.appspot.com",
-            messagingSenderId: "446370519683"
+            messagingSenderId: "446370519683",
+            appId: "1:446370519683:web:de812b56512fb9556e19b6",
+            measurementId: "G-QVWB7G4L8W"
         };
 
         // Initialize Firebase
-        firebase.initializeApp(config);
+        firebase.initializeApp(firebaseConfig);
 
         var ITEMS_PER_PAGE = 10;
         var PAGE_TRANSITION_TIME = 15000;
@@ -184,44 +195,20 @@
             }, PAGE_TRANSITION_TIME);
         }
 
-        document.getElementById('signoutBtn').onclick = function() {
+        document.getElementById('signoutBtn').addEventListener('click', function() {
             firebase.auth().signOut().then(function() {
-                showLoginForm();
+                window.location.href = 'index.html';
             }).catch(function(error) {
                 console.error('Sign out error', error);
             });
-        };
-
-        document.getElementById('loginBtn').onclick = function() {
-            var email = document.getElementById('email').value;
-            var password = document.getElementById('password').value;
-            firebase.auth().signInWithEmailAndPassword(email, password).catch(function(error) {
-                console.error('Login error', error);
-                alert('Login failed. Please check your credentials.');
-            });
-        };
-
-        function showLoginForm() {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('container').style.display = 'none';
-            document.getElementById('content').style.display = 'none';
-            document.getElementById('signoutBtn').style.display = 'none';
-        }
-
-        function showContent() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('container').style.display = 'block';
-            document.getElementById('content').style.display = 'block';
-            document.getElementById('signoutBtn').style.display = 'block';
-        }
+        });
 
         firebase.auth().onAuthStateChanged(function(user) {
             if (user) {
-                showContent();
                 setupRealtimeListener();
                 startPageTransition();
             } else {
-                showLoginForm();
+                window.location.href = 'index.html';
             }
         });
     </script>
