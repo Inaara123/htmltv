@@ -59,11 +59,16 @@
             font-size: 16px;
             text-align: center;
         }
+        #loginForm {
+            display: none;
+            margin-top: 100px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div id="banner">
-        <button id="signoutBtn">Sign Out</button>
+        <button id="signoutBtn" style="display: none;">Sign Out</button>
     </div>
 
     <div id="container">
@@ -76,6 +81,12 @@
         </div>
     </div>
     <div id="content"></div>
+
+    <div id="loginForm">
+        <input type="email" id="email" placeholder="Email" /><br><br>
+        <input type="password" id="password" placeholder="Password" /><br><br>
+        <button id="loginBtn">Login</button>
+    </div>
 
     <script type="text/javascript">
         // Your web app's Firebase configuration
@@ -175,18 +186,42 @@
 
         document.getElementById('signoutBtn').onclick = function() {
             firebase.auth().signOut().then(function() {
-                window.location.href = 'index.html';
+                showLoginForm();
             }).catch(function(error) {
                 console.error('Sign out error', error);
             });
         };
 
+        document.getElementById('loginBtn').onclick = function() {
+            var email = document.getElementById('email').value;
+            var password = document.getElementById('password').value;
+            firebase.auth().signInWithEmailAndPassword(email, password).catch(function(error) {
+                console.error('Login error', error);
+                alert('Login failed. Please check your credentials.');
+            });
+        };
+
+        function showLoginForm() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('container').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('signoutBtn').style.display = 'none';
+        }
+
+        function showContent() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('container').style.display = 'block';
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('signoutBtn').style.display = 'block';
+        }
+
         firebase.auth().onAuthStateChanged(function(user) {
             if (user) {
+                showContent();
                 setupRealtimeListener();
                 startPageTransition();
             } else {
-                window.location.href = 'index.html';
+                showLoginForm();
             }
         });
     </script>
