@@ -135,9 +135,14 @@
                     if (value) {
                         try {
                             var parsedData = JSON.parse(value);
-                            data = Object.keys(parsedData).map(function(key) {
-                                return Object.assign({}, { sno: key }, parsedData[key]);
-                            });
+                            data = [];
+                            for (var key in parsedData) {
+                                if (parsedData.hasOwnProperty(key)) {
+                                    var item = parsedData[key];
+                                    item.sno = key;
+                                    data.push(item);
+                                }
+                            }
                             renderData();
                             resetPageTransition();
                         } catch (e) {
