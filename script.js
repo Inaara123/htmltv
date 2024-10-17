@@ -1,5 +1,5 @@
 // Your web app's Firebase configuration
-const firebaseConfig = {
+var firebaseConfig = {
     apiKey: "AIzaSyBLeHVX_PVKoXuIGBBjf-Mv1S8Cn2oWM18",
     authDomain: "qezev6.firebaseapp.com",
     databaseURL: "https://qezev6-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -14,16 +14,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 // Get elements
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
-const loaderDiv = document.getElementById('loader');
-const errorMessageParagraph = document.getElementById('error-message');
-const loginButton = document.getElementById('loginBtn');
+var emailInput = document.getElementById('email');
+var passwordInput = document.getElementById('password');
+var loaderDiv = document.getElementById('loader');
+var errorMessageParagraph = document.getElementById('error-message');
+var loginButton = document.getElementById('loginBtn');
 
 // Handle login function
-loginButton.addEventListener('click', async () => {
-    const email = emailInput.value;
-    const password = passwordInput.value;
+loginButton.addEventListener('click', function() {
+    var email = emailInput.value;
+    var password = passwordInput.value;
 
     // Clear previous error message
     errorMessageParagraph.textContent = '';
@@ -31,30 +31,41 @@ loginButton.addEventListener('click', async () => {
     // Show loader
     loaderDiv.style.display = 'block';
 
-    try {
-        // Sign in with email and password
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-        
-        // Redirect to home.html after successful login
-        window.location.href = 'home.html';
-        
-    } catch (error) {
-        // Handle Errors here.
-        const errorMessage = error.message;
+    // Sign in with email and password
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(function(userCredential) {
+            // Signed in successfully
+            var user = userCredential.user;
+            console.log("User signed in:", user);
+            // Redirect to home.html after successful login
+            window.location.href = 'home.html';
+        })
+        .catch(function(error) {
+            // Handle Errors here.
+            var errorCode = error.code;
+            var errorMessage = error.message;
+            console.error("Login error:", errorCode, errorMessage);
 
-        // Display error message
-        errorMessageParagraph.textContent = errorMessage;
-
-    } finally {
-        // Hide loader
-        loaderDiv.style.display = 'none';
-    }
+            // Display error message
+            errorMessageParagraph.textContent = errorMessage;
+        })
+        .finally(function() {
+            // Hide loader
+            loaderDiv.style.display = 'none';
+        });
 });
 
 // Check if user is already signed in
-firebase.auth().onAuthStateChanged((user) => {
+firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
         // User is signed in, redirect to home page
+        console.log("User already signed in:", user);
         window.location.href = 'home.html';
+    } else {
+        console.log("No user is signed in.");
     }
 });
+
+// Add some console logs to help with debugging
+console.log("Firebase initialized");
+console.log("Login button:", loginButton);

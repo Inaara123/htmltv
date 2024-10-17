@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Queue Display</title>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- Firebase SDK (using a slightly older version for better compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -49,12 +49,15 @@
             margin-top: 10vh;
         }
         #header {
-            display: grid;
+            display: table;
             width: 100%;
-            grid-template-columns: 5% 30% 20% 20% 25%;
             background-color: #3865ad;
         }
+        .header-row {
+            display: table-row;
+        }
         .header-cell {
+            display: table-cell;
             text-align: center;
             font-size: 150%;
             color: #ffffff;
@@ -64,12 +67,12 @@
             overflow-y: auto;
         }
         .row {
-            display: grid;
+            display: table;
             width: 100%;
-            grid-template-columns: 5% 30% 20% 20% 25%;
             border-bottom: 2px solid #CCCCCC;
         }
         .cell {
+            display: table-cell;
             padding: 18px;
             font-size: 120%;
             text-align: center;
@@ -83,18 +86,20 @@
 
     <div id="container">
         <div id="header">
-            <div class="header-cell">SNO</div>
-            <div class="header-cell">Patient Name</div>
-            <div class="header-cell">Status</div>
-            <div class="header-cell">Department</div>
-            <div class="header-cell">Doctor Name</div>
+            <div class="header-row">
+                <div class="header-cell" style="width: 5%;">SNO</div>
+                <div class="header-cell" style="width: 30%;">Patient Name</div>
+                <div class="header-cell" style="width: 20%;">Status</div>
+                <div class="header-cell" style="width: 20%;">Department</div>
+                <div class="header-cell" style="width: 25%;">Doctor Name</div>
+            </div>
         </div>
     </div>
     <div id="content"></div>
 
     <script>
         // Your web app's Firebase configuration
-        const firebaseConfig = {
+        var firebaseConfig = {
             apiKey: "AIzaSyBLeHVX_PVKoXuIGBBjf-Mv1S8Cn2oWM18",
             authDomain: "qezev6.firebaseapp.com",
             databaseURL: "https://qezev6-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -108,32 +113,31 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
 
-        const ITEMS_PER_PAGE = 10;
-        const PAGE_TRANSITION_TIME = 15000;
+        var ITEMS_PER_PAGE = 10;
+        var PAGE_TRANSITION_TIME = 15000;
 
-        let data = [];
-        let currentPage = 0;
-        let pageTransitionInterval;
+        var data = [];
+        var currentPage = 0;
+        var pageTransitionInterval;
 
         function getWaitNoStatus(waitno) {
             if (waitno === 0) return 'In Consultation';
             if (waitno === 1) return 'Next';
-            return `Wait No: ${waitno}`;
+            return 'Wait No: ' + waitno;
         }
 
         function setupRealtimeListener() {
-            const user = firebase.auth().currentUser;
+            var user = firebase.auth().currentUser;
             if (user) {
-                const dbRef = firebase.database().ref(`/users/${user.uid}/realtime`);
-                dbRef.on('value', (snapshot) => {
-                    const value = snapshot.val();
+                var dbRef = firebase.database().ref('/users/' + user.uid + '/realtime');
+                dbRef.on('value', function(snapshot) {
+                    var value = snapshot.val();
                     if (value) {
                         try {
-                            const parsedData = JSON.parse(value);
-                            data = Object.keys(parsedData).map(key => ({
-                                sno: key,
-                                ...parsedData[key]
-                            }));
+                            var parsedData = JSON.parse(value);
+                            data = Object.keys(parsedData).map(function(key) {
+                                return Object.assign({}, { sno: key }, parsedData[key]);
+                            });
                             renderData();
                             resetPageTransition();
                         } catch (e) {
@@ -143,33 +147,32 @@
                         data = [];
                         renderData();
                     }
-                }, (error) => {
+                }, function(error) {
                     console.error('Error fetching data', error);
                 });
             }
         }
 
         function renderData() {
-            const content = document.getElementById('content');
-            const startIndex = currentPage * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const currentPageData = data.slice(startIndex, endIndex);
+            var content = document.getElementById('content');
+            var startIndex = currentPage * ITEMS_PER_PAGE;
+            var endIndex = startIndex + ITEMS_PER_PAGE;
+            var currentPageData = data.slice(startIndex, endIndex);
 
-            let html = '';
+            var html = '';
             if (data.length === 0) {
                 html = '<div style="text-align: center; padding: 20px;">Patient list is empty</div>';
             } else {
-                currentPageData.forEach(item => {
-                    html += `
-                        <div class="row">
-                            <div class="cell">${item.sno}</div>
-                            <div class="cell">${item.name}</div>
-                            <div class="cell">${getWaitNoStatus(item.waitno)}</div>
-                            <div class="cell">${item.docdept}</div>
-                            <div class="cell">${item.docname}</div>
-                        </div>
-                    `;
-                });
+                for (var i = 0; i < currentPageData.length; i++) {
+                    var item = currentPageData[i];
+                    html += '<div class="row">' +
+                        '<div class="cell" style="width: 5%;">' + item.sno + '</div>' +
+                        '<div class="cell" style="width: 30%;">' + item.name + '</div>' +
+                        '<div class="cell" style="width: 20%;">' + getWaitNoStatus(item.waitno) + '</div>' +
+                        '<div class="cell" style="width: 20%;">' + item.docdept + '</div>' +
+                        '<div class="cell" style="width: 25%;">' + item.docname + '</div>' +
+                    '</div>';
+                }
             }
             content.innerHTML = html;
         }
@@ -181,21 +184,21 @@
         }
 
         function startPageTransition() {
-            pageTransitionInterval = setInterval(() => {
+            pageTransitionInterval = setInterval(function() {
                 currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
                 renderData();
             }, PAGE_TRANSITION_TIME);
         }
 
-        document.getElementById('signoutBtn').addEventListener('click', () => {
-            firebase.auth().signOut().then(() => {
+        document.getElementById('signoutBtn').addEventListener('click', function() {
+            firebase.auth().signOut().then(function() {
                 window.location.href = 'index.html';
-            }).catch((error) => {
+            }).catch(function(error) {
                 console.error('Sign out error', error);
             });
         });
 
-        firebase.auth().onAuthStateChanged((user) => {
+        firebase.auth().onAuthStateChanged(function(user) {
             if (user) {
                 setupRealtimeListener();
                 startPageTransition();
