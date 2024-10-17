@@ -1,14 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Queue Display</title>
-    <!-- Firebase SDK (using a slightly older version for better compatibility) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <style>
+    <script type="text/javascript" src="https://www.gstatic.com/firebasejs/3.7.4/firebase.js"></script>
+    <style type="text/css">
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -16,26 +10,18 @@
             background-color: #f0f0f0;
         }
         #banner {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             background-color: #3865ad;
-            height: 10vh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 900;
+            height: 50px;
             border-bottom: 1px solid white;
-        }
-        #logo {
-            height: 130%;
-            width: 14.5%;
-            margin-left: 45%;
         }
         #signoutBtn {
             position: absolute;
             left: 20px;
+            top: 10px;
             border: 2px solid white;
             background-color: transparent;
             color: white;
@@ -46,35 +32,31 @@
             width: 100%;
             margin: 0;
             padding: 0;
-            margin-top: 10vh;
+            margin-top: 50px;
         }
         #header {
-            display: table;
             width: 100%;
             background-color: #3865ad;
         }
-        .header-row {
-            display: table-row;
-        }
         .header-cell {
-            display: table-cell;
+            float: left;
             text-align: center;
-            font-size: 150%;
+            font-size: 18px;
             color: #ffffff;
             padding: 10px;
         }
         #content {
-            overflow-y: auto;
+            clear: both;
         }
         .row {
-            display: table;
             width: 100%;
             border-bottom: 2px solid #CCCCCC;
+            overflow: hidden;
         }
         .cell {
-            display: table-cell;
+            float: left;
             padding: 18px;
-            font-size: 120%;
+            font-size: 16px;
             text-align: center;
         }
     </style>
@@ -86,32 +68,28 @@
 
     <div id="container">
         <div id="header">
-            <div class="header-row">
-                <div class="header-cell" style="width: 5%;">SNO</div>
-                <div class="header-cell" style="width: 30%;">Patient Name</div>
-                <div class="header-cell" style="width: 20%;">Status</div>
-                <div class="header-cell" style="width: 20%;">Department</div>
-                <div class="header-cell" style="width: 25%;">Doctor Name</div>
-            </div>
+            <div class="header-cell" style="width: 5%;">SNO</div>
+            <div class="header-cell" style="width: 30%;">Patient Name</div>
+            <div class="header-cell" style="width: 20%;">Status</div>
+            <div class="header-cell" style="width: 20%;">Department</div>
+            <div class="header-cell" style="width: 25%;">Doctor Name</div>
         </div>
     </div>
     <div id="content"></div>
 
-    <script>
+    <script type="text/javascript">
         // Your web app's Firebase configuration
-        var firebaseConfig = {
+        var config = {
             apiKey: "AIzaSyBLeHVX_PVKoXuIGBBjf-Mv1S8Cn2oWM18",
             authDomain: "qezev6.firebaseapp.com",
             databaseURL: "https://qezev6-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "qezev6",
             storageBucket: "qezev6.appspot.com",
-            messagingSenderId: "446370519683",
-            appId: "1:446370519683:web:de812b56512fb9556e19b6",
-            measurementId: "G-QVWB7G4L8W"
+            messagingSenderId: "446370519683"
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(config);
 
         var ITEMS_PER_PAGE = 10;
         var PAGE_TRANSITION_TIME = 15000;
@@ -195,13 +173,13 @@
             }, PAGE_TRANSITION_TIME);
         }
 
-        document.getElementById('signoutBtn').addEventListener('click', function() {
+        document.getElementById('signoutBtn').onclick = function() {
             firebase.auth().signOut().then(function() {
                 window.location.href = 'index.html';
             }).catch(function(error) {
                 console.error('Sign out error', error);
             });
-        });
+        };
 
         firebase.auth().onAuthStateChanged(function(user) {
             if (user) {
