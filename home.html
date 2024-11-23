@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="NeoFlow TV - Patient Queue Management System">
     <meta property="og:title" content="NeoFlow TV">
     <meta property="og:description" content="NeoFlow TV - Patient Queue Management System">
+    
     <title>NeoFlow TV</title>
+    
+    <!-- Favicons with absolute paths -->
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="/tv.svg">
+    <link rel="icon" type="image/svg+xml" sizes="16x16" href="/tv.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/tv.svg">
     <link rel="icon" type="image/svg+xml" href="/tv.svg">
     
+    <!-- Manifest -->
+    <link rel="manifest" href="/site.webmanifest">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
@@ -42,7 +48,6 @@
             left: 20px;
             border: 2px solid white;
             background-color: transparent;
-            color: white;
             padding: 8px 16px;
             cursor: pointer;
         }
@@ -51,7 +56,6 @@
             width: 60%;
             left: 20%;
             text-align: center;
-            color: white;
             font-size: 24px;
             font-weight: bold;
         }
@@ -73,6 +77,7 @@
             display: table-cell;
             text-align: center;
             font-size: 150%;
+            color: #ffffff;
             padding: 10px;
         }
         #content {
@@ -103,6 +108,11 @@
             height: 100%;
             object-fit: contain;
         }
+        #mediaVideo {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +135,8 @@
     </div>
 
     <div id="mediaContainer">
-        <img id="mediaImage">
+        <img id="mediaImage" style="display: none;">
+        <iframe id="mediaVideo" style="display: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
     </div>
 
     <script>
@@ -148,12 +159,10 @@
         var currentMediaIndex = 0;
         var mediaCache = new Map();
         var currentDisplay = 'queue';
+        var videoPlayer = null;
         var data = [];
         var currentPage = 0;
         var pageTransitionTimer = null;
-        var metaDataListener = null;
-        var mediaListener = null;
-        var realtimeListener = null;
 
         function getWaitNoStatus(waitno) {
             if (waitno === 0) return 'In Consultation';
@@ -165,31 +174,44 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var metaRef = firebase.database().ref('/users/' + user.uid + '/metaData');
-                metaDataListener = metaRef.on('value', function(snapshot) {
+                metaRef.on('value', function(snapshot) {
                     var metadata = snapshot.val();
                     if (metadata) {
+                        // Apply banner color
+                        if (metadata.banner_color) {
+                            document.getElementById('banner').style.backgroundColor = metadata.banner_color;
+                            document.getElementById('header').style.backgroundColor = metadata.banner_color;
+                        }
+                        
+                        // Apply font color to banner text and sign out button
+                        if (metadata.font_color) {
+                            document.getElementById('clinicName').style.color = metadata.font_color;
+                            document.getElementById('signoutBtn').style.color = metadata.font_color;
+                            document.getElementById('signoutBtn').style.borderColor = metadata.font_color;
+                            
+                            // Apply to header cells
+                            var headerCells = document.getElementsByClassName('header-cell');
+                            for (var i = 0; i < headerCells.length; i++) {
+                                headerCells[i].style.color = metadata.font_color;
+                            }
+                        }
+                        
+                        // Apply font family
+                        if (metadata.font_family) {
+                            document.body.style.fontFamily = metadata.font_family;
+                        }
+                        
+                        // Set clinic name
                         if (metadata.clinic_name) {
                             document.getElementById('clinicName').textContent = metadata.clinic_name;
                         }
+                        
+                        // Set other metadata
                         if (metadata.patient_number) {
                             ITEMS_PER_PAGE = parseInt(metadata.patient_number);
                         }
                         if (metadata.screen_time) {
                             PAGE_TRANSITION_TIME = parseInt(metadata.screen_time) * 1000;
-                        }
-                        if (metadata.banner_color) {
-                            document.getElementById('banner').style.backgroundColor = metadata.banner_color;
-                            document.getElementById('header').style.backgroundColor = metadata.banner_color;
-                        }
-                        if (metadata.font_family) {
-                            document.body.style.fontFamily = metadata.font_family;
-                        }
-                        if (metadata.font_color) {
-                            document.getElementById('clinicName').style.color = metadata.font_color;
-                            const headerCells = document.getElementsByClassName('header-cell');
-                            for (let cell of headerCells) {
-                                cell.style.color = metadata.font_color;
-                            }
                         }
                         resetPageTransition();
                     }
@@ -201,27 +223,23 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var urlsRef = firebase.database().ref('/users/' + user.uid + '/mediaOrder/urls');
-                mediaListener = urlsRef.on('value', function(snapshot) {
-                    mediaUrls = (snapshot.val() || []).filter(url => 
-                        url && !url.includes('youtube.com') && !url.includes('youtu.be')
-                    );
+                urlsRef.on('value', function(snapshot) {
+                    mediaUrls = snapshot.val() || [];
                     cacheImages();
                 });
             }
         }
 
         async function cacheImages() {
-            mediaCache.forEach(url => URL.revokeObjectURL(url));
-            mediaCache.clear();
-            
             for (let url of mediaUrls) {
-                if (!url) continue;
-                try {
-                    const response = await fetch(url);
-                    const blob = await response.blob();
-                    mediaCache.set(url, URL.createObjectURL(blob));
-                } catch (error) {
-                    console.error('Failed to cache image:', url, error);
+                if (!url.includes('youtube.com') && !mediaCache.has(url)) {
+                    try {
+                        const response = await fetch(url);
+                        const blob = await response.blob();
+                        mediaCache.set(url, URL.createObjectURL(blob));
+                    } catch (error) {
+                        console.error('Failed to cache image:', url, error);
+                    }
                 }
             }
         }
@@ -230,7 +248,7 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var dbRef = firebase.database().ref('/users/' + user.uid + '/realtime');
-                realtimeListener = dbRef.on('value', function(snapshot) {
+                dbRef.on('value', function(snapshot) {
                     var value = snapshot.val();
                     if (value) {
                         try {
@@ -243,6 +261,7 @@
                                     data.push(item);
                                 }
                             }
+                            // Only reset page if data length changes significantly
                             if (Math.abs(data.length - currentPage * ITEMS_PER_PAGE) > ITEMS_PER_PAGE) {
                                 currentPage = 0;
                             }
@@ -286,6 +305,7 @@
             const containerDiv = document.getElementById('container');
             const mediaContainerDiv = document.getElementById('mediaContainer');
             const mediaImage = document.getElementById('mediaImage');
+            const mediaVideo = document.getElementById('mediaVideo');
 
             if (pageTransitionTimer) {
                 clearTimeout(pageTransitionTimer);
@@ -298,16 +318,89 @@
 
             const currentUrl = mediaUrls[currentMediaIndex];
 
-            if (currentUrl) {
-                mediaImage.onerror = () => {
-                    console.error('Failed to load image:', currentUrl);
+            if (currentUrl && currentUrl.includes('youtube')) {
+                mediaImage.style.display = 'none';
+                mediaVideo.style.display = 'block';
+                
+                try {
+                    let videoId = '';
+                    
+                    if (currentUrl.includes('v=')) {
+                        videoId = currentUrl.split('v=')[1];
+                        const ampersandPosition = videoId.indexOf('&');
+                        if (ampersandPosition !== -1) {
+                            videoId = videoId.substring(0, ampersandPosition);
+                        }
+                    } else if (currentUrl.includes('youtu.be/')) {
+                        videoId = currentUrl.split('youtu.be/')[1];
+                        const questionMarkPosition = videoId.indexOf('?');
+                        if (questionMarkPosition !== -1) {
+                            videoId = videoId.substring(0, questionMarkPosition);
+                        }
+                    } else if (currentUrl.includes('embed/')) {
+                        videoId = currentUrl.split('embed/')[1];
+                        const questionMarkPosition = videoId.indexOf('?');
+                        if (questionMarkPosition !== -1) {
+                            videoId = videoId.substring(0, questionMarkPosition);
+                        }
+                    }
+
+                    if (!videoId) {
+                        console.error('Invalid YouTube URL:', currentUrl);
+                        nextDisplay();
+                        return;
+                    }
+
+                    mediaVideo.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=1&origin=${window.location.origin}`;
+
+                    if (!videoPlayer) {
+                        videoPlayer = new YT.Player('mediaVideo', {
+                            events: {
+                                'onReady': function(event) {
+                                    try {
+                                        event.target.playVideo();
+                                    } catch (e) {
+                                        console.error('Error playing video:', e);
+                                        nextDisplay();
+                                    }
+                                },
+                                'onStateChange': function(event) {
+                                    if (event.data === YT.PlayerState.ENDED) {
+                                        nextDisplay();
+                                    }
+                                },
+                                'onError': function(event) {
+                                    console.error('YouTube player error:', event.data);
+                                    nextDisplay();
+                                }
+                            }
+                        });
+                    } else {
+                        try {
+                            videoPlayer.loadVideoById(videoId);
+                        } catch (e) {
+                            console.error('Error loading video:', e);
+                            nextDisplay();
+                        }
+                    }
+
+                    pageTransitionTimer = setTimeout(() => {
+                        if (currentDisplay === 'media') {
+                            nextDisplay();
+                        }
+                    }, 10000);
+
+                } catch (e) {
+                    console.error('Error setting up YouTube video:', e);
                     nextDisplay();
-                };
+                }
+            } else if (currentUrl) {
+                mediaVideo.style.display = 'none';
+                mediaImage.style.display = 'block';
                 mediaImage.src = mediaCache.get(currentUrl) || currentUrl;
-                // Move to next media index after displaying current one
-                currentMediaIndex = (currentMediaIndex + 1) % mediaUrls.length;
                 pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
+                console.error('No URL available at index:', currentMediaIndex);
                 nextDisplay();
             }
         }
@@ -320,12 +413,22 @@
 
             const containerDiv = document.getElementById('container');
             const mediaContainerDiv = document.getElementById('mediaContainer');
-            const mediaImage = document.getElementById('mediaImage');
+            const mediaVideo = document.getElementById('mediaVideo');
 
             containerDiv.style.display = 'block';
             mediaContainerDiv.style.display = 'none';
-            mediaImage.src = '';
+            mediaVideo.src = '';
+            mediaVideo.removeAttribute('src');
             currentDisplay = 'queue';
+
+            if (videoPlayer) {
+                try {
+                    videoPlayer.destroy();
+                } catch (e) {
+                    console.error('Error destroying video player:', e);
+                }
+                videoPlayer = null;
+            }
 
             renderData();
             pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
@@ -338,18 +441,18 @@
             }
 
             if (currentDisplay === 'queue') {
-                // After showing queue, always show next media item
-                if (mediaUrls && mediaUrls.length > 0) {
-                    showMedia();
-                } else {
-                    // If no media, just cycle through queue pages
-                    currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
-                    renderData();
-                    pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
+                currentPage++;
+                if (currentPage >= Math.ceil(data.length / ITEMS_PER_PAGE)) {
+                    currentPage = 0;
+                    if (mediaUrls.length > 0) {
+                        showMedia();
+                        return;
+                    }
                 }
+                renderData();
+                pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
-                // After showing media, move to next queue page and show it
-                currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
+                currentMediaIndex = (currentMediaIndex + 1) % mediaUrls.length;
                 showQueue();
             }
         }
@@ -359,44 +462,43 @@
                 clearTimeout(pageTransitionTimer);
                 pageTransitionTimer = null;
             }
-    
+            
             currentPage = 0;
-            currentDisplay = 'queue';
-            renderData();
-            pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
+            currentMediaIndex = 0;
+            if (currentDisplay === 'queue') {
+                renderData();
+                pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
+            } else {
+                showQueue();
+            }
         }
 
-        function cleanupListeners() {
-            var user = firebase.auth().currentUser;
-            if (user) {
-                if (metaDataListener) {
-                    firebase.database().ref('/users/' + user.uid + '/metaData').off('value', metaDataListener);
+        function loadYouTubeAPI() {
+            try {
+                var tag = document.createElement('script');
+                tag.src = "https://www.youtube.com/iframe_api";
+                tag.onerror = function() {
+                    console.error('Failed to load YouTube API');
+                };
+                var firstScriptTag = document.getElementsByTagName('script')[0];
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            } catch (e) {
+                console.error('Error loading YouTube API:', e);
+            }
+        }
+
+        function onYouTubeIframeAPIReady() {
+            try {
+                if (currentDisplay === 'media' && mediaUrls[currentMediaIndex].includes('youtube.com')) {
+                    showMedia();
                 }
-                if (mediaListener) {
-                    firebase.database().ref('/users/' + user.uid + '/mediaOrder/urls').off('value', mediaListener);
-                }
-                if (realtimeListener) {
-                    firebase.database().ref('/users/' + user.uid + '/realtime').off('value', realtimeListener);
-                }
+            } catch (e) {
+                console.error('Error in onYouTubeIframeAPIReady:', e);
+                nextDisplay();
             }
         }
 
         document.getElementById('signoutBtn').addEventListener('click', function() {
-            if (pageTransitionTimer) {
-                clearTimeout(pageTransitionTimer);
-                pageTransitionTimer = null;
-            }
-            
-            mediaCache.forEach(url => URL.revokeObjectURL(url));
-            mediaCache.clear();
-            
-            mediaUrls = [];
-            currentMediaIndex = 0;
-            data = [];
-            currentPage = 0;
-
-            cleanupListeners();
-            
             firebase.auth().signOut().then(function() {
                 window.location.href = 'index.html';
             }).catch(function(error) {
@@ -413,6 +515,8 @@
                 window.location.href = 'index.html';
             }
         });
+
+        loadYouTubeAPI();
     </script>
 </body>
 </html>
