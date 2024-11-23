@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="88" id="tv">
+  <g fill="none" fill-rule="evenodd" transform="translate(.113 2.204)">
+    <rect width="86.518" height="65.416" x="1.583" y="18.464" stroke="#3D42EC" stroke-width="3.165" rx="5.275"></rect>
+    <circle cx="74.912" cy="50.645" r="3.165" fill="#3D42EC"></circle>
+    <circle cx="74.912" cy="61.196" r="3.165" fill="#3D42EC"></circle>
+    <circle cx="74.912" cy="39.039" r="3.165" fill="#3D42EC"></circle>
+    <path fill="#6FABF6" fill-rule="nonzero" d="M14.13 26.708c7.534-.924 15.31-1.386 23.326-1.386 8.116 0 16.233.474 24.35 1.42a5.275 5.275 0 0 1 4.665 5.24v32.033a5.275 5.275 0 0 1-4.676 5.241c-8.362.957-16.475 1.436-24.339 1.436-7.773 0-15.544-.468-23.315-1.402a5.275 5.275 0 0 1-4.645-5.238V31.944a5.275 5.275 0 0 1 4.633-5.236Z"></path>
+    <path stroke="#3D42EC" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.165" d="M13.478 76.658h9.124M29.543 0l16.391 15.826L61.196 0"></path>
+  </g>
+</svg>

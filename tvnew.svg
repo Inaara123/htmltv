@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" id="tv" x="0" y="0" enable-background="new 0 0 65 65" version="1.1" viewBox="0 0 65 65">
+  <g>
+    <rect width="64" height="37.7" x=".5" y="11" fill="#445C6C"></rect>
+    <rect width="64" height=".5" x=".5" y="11" fill="#566E7C"></rect>
+    <rect width="59.4" height="33.2" x="2.8" y="13.3" fill="#41B3E2"></rect>
+    <rect width="59.4" height=".7" x="2.8" y="45.7" fill="#59CBEF"></rect>
+    <polygon fill="#2F4551" points="52.3 52.7 12.7 52.7 16.9 48.7 48.1 48.7"></polygon>
+    <polygon fill="#1E323A" points="49.7 50.3 48.1 48.7 16.9 48.7 15.3 50.3"></polygon>
+    <rect width="48.7" height="1.3" x="8.1" y="52.7" fill="#445C6C"></rect>
+    <g>
+      <path fill="#EFF3F5" d="M28.6 26.8v7.5h-1.5v-7.5h-2.7v-1.4h6.9v1.4H28.6zM37 34.3h-1.7l-3.6-8.8h1.7l2.7 6.6 2.7-6.6h1.7L37 34.3z"></path>
+    </g>
+  </g>
+</svg>

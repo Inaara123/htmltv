@@ -1,3 +1,4 @@
+<!-- home.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,19 +16,18 @@
             padding: 0;
             background-color: #f0f0f0;
         }
-        #banner {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background-color: #3865ad;
-            height: 10vh;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 900;
-            border-bottom: 1px solid white;
-        }
+ #banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 10vh;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 900;
+    border-bottom: 1px solid white;
+}
         #logo {
             height: 130%;
             width: 14.5%;
@@ -69,7 +69,6 @@
             display: table-cell;
             text-align: center;
             font-size: 150%;
-            color: #ffffff;
             padding: 10px;
         }
         #content {
@@ -100,11 +99,6 @@
             height: 100%;
             object-fit: contain;
         }
-        #mediaVideo {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
     </style>
 </head>
 <body>
@@ -127,8 +121,7 @@
     </div>
 
     <div id="mediaContainer">
-        <img id="mediaImage" style="display: none;">
-        <iframe id="mediaVideo" style="display: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        <img id="mediaImage">
     </div>
 
     <script>
@@ -151,10 +144,12 @@
         var currentMediaIndex = 0;
         var mediaCache = new Map();
         var currentDisplay = 'queue';
-        var videoPlayer = null;
         var data = [];
         var currentPage = 0;
         var pageTransitionTimer = null;
+        var metaDataListener = null;
+        var mediaListener = null;
+        var realtimeListener = null;
 
         function getWaitNoStatus(waitno) {
             if (waitno === 0) return 'In Consultation';
@@ -166,18 +161,41 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var metaRef = firebase.database().ref('/users/' + user.uid + '/metaData');
-                metaRef.on('value', function(snapshot) {
+                metaDataListener = metaRef.on('value', function(snapshot) {
                     var metadata = snapshot.val();
                     if (metadata) {
+                        // Update clinic name
                         if (metadata.clinic_name) {
                             document.getElementById('clinicName').textContent = metadata.clinic_name;
                         }
+
+                        // Update page settings
                         if (metadata.patient_number) {
                             ITEMS_PER_PAGE = parseInt(metadata.patient_number);
                         }
                         if (metadata.screen_time) {
                             PAGE_TRANSITION_TIME = parseInt(metadata.screen_time) * 1000;
                         }
+
+                        // Update styling
+                        if (metadata.banner_color) {
+                            document.getElementById('banner').style.backgroundColor = metadata.banner_color;
+                            document.getElementById('header').style.backgroundColor = metadata.banner_color;
+                        }
+
+                        if (metadata.font_family) {
+                            document.body.style.fontFamily = metadata.font_family;
+                        }
+
+                        if (metadata.font_color) {
+                            // Apply font color to all text elements
+                            document.getElementById('clinicName').style.color = metadata.font_color;
+                            const headerCells = document.getElementsByClassName('header-cell');
+                            for (let cell of headerCells) {
+                                cell.style.color = metadata.font_color;
+                            }
+                        }
+
                         resetPageTransition();
                     }
                 });
@@ -188,23 +206,28 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var urlsRef = firebase.database().ref('/users/' + user.uid + '/mediaOrder/urls');
-                urlsRef.on('value', function(snapshot) {
-                    mediaUrls = snapshot.val() || [];
+                mediaListener = urlsRef.on('value', function(snapshot) {
+                    mediaUrls = (snapshot.val() || []).filter(url => 
+                        url && !url.includes('youtube.com') && !url.includes('youtu.be')
+                    );
                     cacheImages();
                 });
             }
         }
 
         async function cacheImages() {
+            // Clear old cache
+            mediaCache.forEach(url => URL.revokeObjectURL(url));
+            mediaCache.clear();
+            
             for (let url of mediaUrls) {
-                if (!url.includes('youtube.com') && !mediaCache.has(url)) {
-                    try {
-                        const response = await fetch(url);
-                        const blob = await response.blob();
-                        mediaCache.set(url, URL.createObjectURL(blob));
-                    } catch (error) {
-                        console.error('Failed to cache image:', url, error);
-                    }
+                if (!url) continue;
+                try {
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    mediaCache.set(url, URL.createObjectURL(blob));
+                } catch (error) {
+                    console.error('Failed to cache image:', url, error);
                 }
             }
         }
@@ -213,7 +236,7 @@
             var user = firebase.auth().currentUser;
             if (user) {
                 var dbRef = firebase.database().ref('/users/' + user.uid + '/realtime');
-                dbRef.on('value', function(snapshot) {
+                realtimeListener = dbRef.on('value', function(snapshot) {
                     var value = snapshot.val();
                     if (value) {
                         try {
@@ -226,7 +249,6 @@
                                     data.push(item);
                                 }
                             }
-                            // Only reset page if data length changes significantly
                             if (Math.abs(data.length - currentPage * ITEMS_PER_PAGE) > ITEMS_PER_PAGE) {
                                 currentPage = 0;
                             }
@@ -270,7 +292,6 @@
             const containerDiv = document.getElementById('container');
             const mediaContainerDiv = document.getElementById('mediaContainer');
             const mediaImage = document.getElementById('mediaImage');
-            const mediaVideo = document.getElementById('mediaVideo');
 
             if (pageTransitionTimer) {
                 clearTimeout(pageTransitionTimer);
@@ -283,89 +304,14 @@
 
             const currentUrl = mediaUrls[currentMediaIndex];
 
-            if (currentUrl && currentUrl.includes('youtube')) {
-                mediaImage.style.display = 'none';
-                mediaVideo.style.display = 'block';
-                
-                try {
-                    let videoId = '';
-                    
-                    if (currentUrl.includes('v=')) {
-                        videoId = currentUrl.split('v=')[1];
-                        const ampersandPosition = videoId.indexOf('&');
-                        if (ampersandPosition !== -1) {
-                            videoId = videoId.substring(0, ampersandPosition);
-                        }
-                    } else if (currentUrl.includes('youtu.be/')) {
-                        videoId = currentUrl.split('youtu.be/')[1];
-                        const questionMarkPosition = videoId.indexOf('?');
-                        if (questionMarkPosition !== -1) {
-                            videoId = videoId.substring(0, questionMarkPosition);
-                        }
-                    } else if (currentUrl.includes('embed/')) {
-                        videoId = currentUrl.split('embed/')[1];
-                        const questionMarkPosition = videoId.indexOf('?');
-                        if (questionMarkPosition !== -1) {
-                            videoId = videoId.substring(0, questionMarkPosition);
-                        }
-                    }
-
-                    if (!videoId) {
-                        console.error('Invalid YouTube URL:', currentUrl);
-                        nextDisplay();
-                        return;
-                    }
-
-                    mediaVideo.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&mute=1&origin=${window.location.origin}`;
-
-                    if (!videoPlayer) {
-                        videoPlayer = new YT.Player('mediaVideo', {
-                            events: {
-                                'onReady': function(event) {
-                                    try {
-                                        event.target.playVideo();
-                                    } catch (e) {
-                                        console.error('Error playing video:', e);
-                                        nextDisplay();
-                                    }
-                                },
-                                'onStateChange': function(event) {
-                                    if (event.data === YT.PlayerState.ENDED) {
-                                        nextDisplay();
-                                    }
-                                },
-                                'onError': function(event) {
-                                    console.error('YouTube player error:', event.data);
-                                    nextDisplay();
-                                }
-                            }
-                        });
-                    } else {
-                        try {
-                            videoPlayer.loadVideoById(videoId);
-                        } catch (e) {
-                            console.error('Error loading video:', e);
-                            nextDisplay();
-                        }
-                    }
-
-                    pageTransitionTimer = setTimeout(() => {
-                        if (currentDisplay === 'media') {
-                            nextDisplay();
-                        }
-                    }, 10000);
-
-                } catch (e) {
-                    console.error('Error setting up YouTube video:', e);
+            if (currentUrl) {
+                mediaImage.onerror = () => {
+                    console.error('Failed to load image:', currentUrl);
                     nextDisplay();
-                }
-            } else if (currentUrl) {
-                mediaVideo.style.display = 'none';
-                mediaImage.style.display = 'block';
+                };
                 mediaImage.src = mediaCache.get(currentUrl) || currentUrl;
                 pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
-                console.error('No URL available at index:', currentMediaIndex);
                 nextDisplay();
             }
         }
@@ -378,22 +324,12 @@
 
             const containerDiv = document.getElementById('container');
             const mediaContainerDiv = document.getElementById('mediaContainer');
-            const mediaVideo = document.getElementById('mediaVideo');
+            const mediaImage = document.getElementById('mediaImage');
 
             containerDiv.style.display = 'block';
             mediaContainerDiv.style.display = 'none';
-            mediaVideo.src = '';
-            mediaVideo.removeAttribute('src');
+            mediaImage.src = '';
             currentDisplay = 'queue';
-
-            if (videoPlayer) {
-                try {
-                    videoPlayer.destroy();
-                } catch (e) {
-                    console.error('Error destroying video player:', e);
-                }
-                videoPlayer = null;
-            }
 
             renderData();
             pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
@@ -406,17 +342,18 @@
             }
 
             if (currentDisplay === 'queue') {
-                currentPage++;
-                if (currentPage >= Math.ceil(data.length / ITEMS_PER_PAGE)) {
-                    currentPage = 0;
-                    if (mediaUrls.length > 0) {
-                        showMedia();
-                        return;
-                    }
+                // If we have media, show it after the current queue page
+                if (mediaUrls && mediaUrls.length > 0) {
+                    showMedia();
+                } else {
+                    // If no media, just go to next queue page
+                    currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
+                    renderData();
+                    pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
                 }
-                renderData();
-                pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
+                // After showing media, go to next queue page
+                currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
                 currentMediaIndex = (currentMediaIndex + 1) % mediaUrls.length;
                 showQueue();
             }
@@ -427,43 +364,51 @@
                 clearTimeout(pageTransitionTimer);
                 pageTransitionTimer = null;
             }
-            
-            currentPage = 0;
-            currentMediaIndex = 0;
+    
+            // Don't change the current page/media, just reset the timer
             if (currentDisplay === 'queue') {
                 renderData();
                 pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
-                showQueue();
+                showMedia(); // This will reset the timer for current media
             }
         }
 
-        function loadYouTubeAPI() {
-            try {
-                var tag = document.createElement('script');
-                tag.src = "https://www.youtube.com/iframe_api";
-                tag.onerror = function() {
-                    console.error('Failed to load YouTube API');
-                };
-                var firstScriptTag = document.getElementsByTagName('script')[0];
-                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-            } catch (e) {
-                console.error('Error loading YouTube API:', e);
-            }
-        }
-
-        function onYouTubeIframeAPIReady() {
-            try {
-                if (currentDisplay === 'media' && mediaUrls[currentMediaIndex].includes('youtube.com')) {
-                    showMedia();
+        function cleanupListeners() {
+            var user = firebase.auth().currentUser;
+            if (user) {
+                if (metaDataListener) {
+                    firebase.database().ref('/users/' + user.uid + '/metaData').off('value', metaDataListener);
                 }
-            } catch (e) {
-                console.error('Error in onYouTubeIframeAPIReady:', e);
-                nextDisplay();
+                if (mediaListener) {
+                    firebase.database().ref('/users/' + user.uid + '/mediaOrder/urls').off('value', mediaListener);
+                }
+                if (realtimeListener) {
+                    firebase.database().ref('/users/' + user.uid + '/realtime').off('value', realtimeListener);
+                }
             }
         }
 
         document.getElementById('signoutBtn').addEventListener('click', function() {
+            // Clear timers
+            if (pageTransitionTimer) {
+                clearTimeout(pageTransitionTimer);
+                pageTransitionTimer = null;
+            }
+            
+            // Clear media cache
+            mediaCache.forEach(url => URL.revokeObjectURL(url));
+            mediaCache.clear();
+            
+            // Clear variables
+            mediaUrls = [];
+            currentMediaIndex = 0;
+            data = [];
+            currentPage = 0;
+
+            // Clean up listeners
+            cleanupListeners();
+            
             firebase.auth().signOut().then(function() {
                 window.location.href = 'index.html';
             }).catch(function(error) {
@@ -480,8 +425,6 @@
                 window.location.href = 'index.html';
             }
         });
-
-        loadYouTubeAPI();
     </script>
 </body>
 </html>
