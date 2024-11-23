@@ -1,10 +1,14 @@
-<!-- home.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Queue Display</title>
+    <meta name="description" content="NeoFlow TV - Patient Queue Management System">
+    <meta property="og:title" content="NeoFlow TV">
+    <meta property="og:description" content="NeoFlow TV - Patient Queue Management System">
+    <title>NeoFlow TV</title>
+    <link rel="icon" type="image/svg+xml" href="/tv.svg">
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -16,18 +20,18 @@
             padding: 0;
             background-color: #f0f0f0;
         }
- #banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 10vh;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 900;
-    border-bottom: 1px solid white;
-}
+        #banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10vh;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 900;
+            border-bottom: 1px solid white;
+        }
         #logo {
             height: 130%;
             width: 14.5%;
@@ -164,38 +168,29 @@
                 metaDataListener = metaRef.on('value', function(snapshot) {
                     var metadata = snapshot.val();
                     if (metadata) {
-                        // Update clinic name
                         if (metadata.clinic_name) {
                             document.getElementById('clinicName').textContent = metadata.clinic_name;
                         }
-
-                        // Update page settings
                         if (metadata.patient_number) {
                             ITEMS_PER_PAGE = parseInt(metadata.patient_number);
                         }
                         if (metadata.screen_time) {
                             PAGE_TRANSITION_TIME = parseInt(metadata.screen_time) * 1000;
                         }
-
-                        // Update styling
                         if (metadata.banner_color) {
                             document.getElementById('banner').style.backgroundColor = metadata.banner_color;
                             document.getElementById('header').style.backgroundColor = metadata.banner_color;
                         }
-
                         if (metadata.font_family) {
                             document.body.style.fontFamily = metadata.font_family;
                         }
-
                         if (metadata.font_color) {
-                            // Apply font color to all text elements
                             document.getElementById('clinicName').style.color = metadata.font_color;
                             const headerCells = document.getElementsByClassName('header-cell');
                             for (let cell of headerCells) {
                                 cell.style.color = metadata.font_color;
                             }
                         }
-
                         resetPageTransition();
                     }
                 });
@@ -216,7 +211,6 @@
         }
 
         async function cacheImages() {
-            // Clear old cache
             mediaCache.forEach(url => URL.revokeObjectURL(url));
             mediaCache.clear();
             
@@ -310,6 +304,8 @@
                     nextDisplay();
                 };
                 mediaImage.src = mediaCache.get(currentUrl) || currentUrl;
+                // Move to next media index after displaying current one
+                currentMediaIndex = (currentMediaIndex + 1) % mediaUrls.length;
                 pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
             } else {
                 nextDisplay();
@@ -342,19 +338,18 @@
             }
 
             if (currentDisplay === 'queue') {
-                // If we have media, show it after the current queue page
+                // After showing queue, always show next media item
                 if (mediaUrls && mediaUrls.length > 0) {
                     showMedia();
                 } else {
-                    // If no media, just go to next queue page
+                    // If no media, just cycle through queue pages
                     currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
                     renderData();
                     pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
                 }
             } else {
-                // After showing media, go to next queue page
+                // After showing media, move to next queue page and show it
                 currentPage = (currentPage + 1) % Math.ceil(data.length / ITEMS_PER_PAGE);
-                currentMediaIndex = (currentMediaIndex + 1) % mediaUrls.length;
                 showQueue();
             }
         }
@@ -365,13 +360,10 @@
                 pageTransitionTimer = null;
             }
     
-            // Don't change the current page/media, just reset the timer
-            if (currentDisplay === 'queue') {
-                renderData();
-                pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
-            } else {
-                showMedia(); // This will reset the timer for current media
-            }
+            currentPage = 0;
+            currentDisplay = 'queue';
+            renderData();
+            pageTransitionTimer = setTimeout(nextDisplay, PAGE_TRANSITION_TIME);
         }
 
         function cleanupListeners() {
@@ -390,23 +382,19 @@
         }
 
         document.getElementById('signoutBtn').addEventListener('click', function() {
-            // Clear timers
             if (pageTransitionTimer) {
                 clearTimeout(pageTransitionTimer);
                 pageTransitionTimer = null;
             }
             
-            // Clear media cache
             mediaCache.forEach(url => URL.revokeObjectURL(url));
             mediaCache.clear();
             
-            // Clear variables
             mediaUrls = [];
             currentMediaIndex = 0;
             data = [];
             currentPage = 0;
 
-            // Clean up listeners
             cleanupListeners();
             
             firebase.auth().signOut().then(function() {
